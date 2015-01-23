@@ -17,8 +17,6 @@ use PaymentSuite\PaymentCoreBundle\Services\Interfaces\PaymentBridgeInterface;
 
 class DummyPaymentBridge implements PaymentBridgeInterface {
 
-    private $entityManager;
-
     /**
      * @var Object
      *
