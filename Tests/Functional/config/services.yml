@@ -1,0 +1,3 @@
+services:
+    payment.bridge:
+        class: PaymentSuite\RedsysBundle\Tests\Services\PaymentBridge

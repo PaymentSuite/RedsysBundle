@@ -1,0 +1,5 @@
+redsys_payment_routes:
+    resource: .
+    type: redsys
+
+
