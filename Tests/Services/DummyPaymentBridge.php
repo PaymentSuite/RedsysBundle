@@ -36,11 +36,6 @@ class DummyPaymentBridge implements PaymentBridgeInterface {
      */
     private $orderNumber;
 
-    function __construct()
-    {
-
-    }
-
     public function getPaymentName()
     {
         return 'redsys';
