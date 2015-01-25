@@ -13,9 +13,9 @@
 
 namespace PaymentSuite\RedsysBundle\Tests\Services;
 
-use PaymentSuite\PaymentCoreBundle\Services\Interfaces\PaymentBridgeInterface;
+use PaymentSuite\RedsysBundle\Services\Interfaces\PaymentBridgeRedsysInterface;
 
-class DummyPaymentBridge implements PaymentBridgeInterface {
+class DummyPaymentBridge implements PaymentBridgeRedsysInterface {
 
     /**
      * @var Object
@@ -130,4 +130,15 @@ class DummyPaymentBridge implements PaymentBridgeInterface {
     {
         return array('terminal' => '001');
     }
+
+    /**
+     * Return dsOrder identifier value
+     *
+     * @return integer
+     */
+    public function getOrderNumber()
+    {
+        return mt_rand (0, 99999);
+    }
+
 } 
