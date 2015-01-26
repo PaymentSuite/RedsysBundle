@@ -24,23 +24,53 @@ class UrlFactory
      */
     private $router;
 
+    /**
+     * @var string
+     *
+     * Route success
+     */
+    private $successRouteName;
+
+    /**
+     * @var string
+     *
+     * Route fail
+     */
+    private $failRouteName;
+
+    /**
+     * @var string
+     *
+     * Route result
+     */
+    private $resultRouteName;
+
 
     /**
      * @param RouterInterface $router                         Router instance
-     * @param string          $successRouteName               Route name for a succesful payment return from Paypal
-     * @param string          $failRouteName                  Route name for a cancelled payment from Paypal
+     * @param string          $successRouteName               Route name for a succesful payment return from Redsys
+     * @param string          $failRouteName                  Route name for a cancelled payment from Redsys
+     * @param string          $resultRouteName                Route name for a result Redsys
      */
     public function __construct(
         RouterInterface $router,
         $successRouteName,
-        $failRouteName)
+        $failRouteName,
+        $resultRouteName)
     {
 
-        $this->router = $router;
+        $this->router           = $router;
         $this->successRouteName = $successRouteName;
-        $this->failRouteName = $failRouteName;
+        $this->failRouteName    = $failRouteName;
+        $this->resultRouteName  = $resultRouteName;
     }
 
+    /**
+     * Get the route succesful payment return from Redsys
+     *
+     * @param $orderId
+     * @return string
+     */
     public function getReturnUrlOkForOrderId($orderId)
     {
         return $this->router->generate(
@@ -50,6 +80,12 @@ class UrlFactory
         );
     }
 
+    /**
+     * Get the route cancelled payment from Redsys
+     *
+     * @param $orderId
+     * @return string
+     */
     public function getReturnUrlKoForOrderId($orderId)
     {
         return $this->router->generate(
@@ -57,5 +93,18 @@ class UrlFactory
             array('id' => $orderId),
             true
         );
+    }
+
+    /**
+     * Get the route result Redsys
+     *
+     * @return string
+     */
+    public function getReturnRedsysUrl()
+    {
+        return $this->router->generate(
+            $this->resultRouteName,
+            array(),
+            true);
     }
 }
