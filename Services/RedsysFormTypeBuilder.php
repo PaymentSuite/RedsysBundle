@@ -11,25 +11,25 @@
  * @author Marc Morera <yuhu@mmoreram.com>
  */
 
-namespace PaymentSuite\RedsysBundle\Services\Wrapper;
+namespace PaymentSuite\RedsysBundle\Services;
 
 use Symfony\Component\Form\FormFactory;
+use Symfony\Component\Form\FormView;
 
-use PaymentSuite\RedsysBundle\Services\Interfaces\PaymentBridgeRedsysInterface;
 use PaymentSuite\RedsysBundle\Exception\CurrencyNotSupportedException;
-use PaymentSuite\RedsysBundle\Services\UrlFactory;
+use PaymentSuite\RedsysBundle\Services\Interfaces\PaymentBridgeRedsysInterface;
 
 /**
- * RedsysMethodWrapper
+ * RedsysFormTypeBuilder
  */
-class RedsysFormTypeWrapper
+class RedsysFormTypeBuilder
 {
     /**
-     * @var FormFactory
+     * @var UrlFactory
      *
-     * Form factory
+     * URL Factory service
      */
-    protected $formFactory;
+    private $urlFactory;
 
     /**
      * @var PaymentBridgeRedsysInterface
@@ -39,11 +39,11 @@ class RedsysFormTypeWrapper
     private $paymentBridge;
 
     /**
-     * @var UrlFactory
+     * @var FormFactory
      *
-     * URL Factory service
+     * Form factory
      */
-    private $urlFactory;
+    protected $formFactory;
 
     /**
      * @var string
@@ -67,35 +67,36 @@ class RedsysFormTypeWrapper
     private $url;
 
     /**
-     * Formtype construct method
+     * construct
      *
-     * @param FormFactory                  $formFactory   Form factory
-     * @param PaymentBridgeRedsysInterface $paymentBridge Payment bridge
      * @param UrlFactory                   $urlFactory    URL Factory service
+     * @param PaymentBridgeRedsysInterface $paymentBridge Payment bridge
+     * @param FormFactory                  $formFactory   Form factory
      * @param string                       $merchantCode  merchant code
      * @param string                       $secretKey     secret key
      * @param string                       $url           gateway url
      *
      */
-    public function __construct(FormFactory $formFactory,
-                                PaymentBridgeRedsysInterface $paymentBridge,
-                                UrlFactory $urlFactory,
-                                $merchantCode,
-                                $secretKey,
-                                $url)
-    {
-        $this->formFactory              = $formFactory;
-        $this->paymentBridge            = $paymentBridge;
-        $this->urlFactory               = $urlFactory;
-        $this->merchantCode             = $merchantCode;
-        $this->secretKey                = $secretKey;
-        $this->url                      = $url;
+    public function __construct(
+        PaymentBridgeRedsysInterface $paymentBridge,
+        UrlFactory $urlFactory,
+        FormFactory $formFactory,
+        $merchantCode,
+        $secretKey,
+        $url
+    ) {
+        $this->paymentBridge = $paymentBridge;
+        $this->urlFactory = $urlFactory;
+        $this->formFactory = $formFactory;
+        $this->merchantCode = $merchantCode;
+        $this->secretKey = $secretKey;
+        $this->url = $url;
     }
 
     /**
      * Builds form given return, success and fail urls
      *
-     * @return \Symfony\Component\Form\FormView
+     * @return FormView
      */
     public function buildForm()
     {
@@ -109,19 +110,19 @@ class RedsysFormTypeWrapper
             ->createNamedBuilder(null);
 
         if (array_key_exists('transaction_type', $extraData)) {
-            $Ds_Merchant_TransactionType    = $extraData['transaction_type'];
+            $Ds_Merchant_TransactionType = $extraData['transaction_type'];
         } else {
             $Ds_Merchant_TransactionType = '0';
         }
 
-        /*
+        /**
          * Creates the return route for Redsys
          */
         $Ds_Merchant_MerchantURL = $this
             ->urlFactory
             ->getReturnRedsysUrl();
 
-        /*
+        /**
          * Creates the return route, when coming back
          * from Redsys web checkout and proccess is Ok
          */
@@ -129,7 +130,7 @@ class RedsysFormTypeWrapper
             ->urlFactory
             ->getReturnUrlOkForOrderId($orderId);
 
-        /*
+        /**
          * Creates the cancel payment route, when coming back
          * from Redsys web checkout and proccess is error
          */
@@ -137,115 +138,141 @@ class RedsysFormTypeWrapper
             ->urlFactory
             ->getReturnUrlKoForOrderId($orderId);
 
-        $Ds_Merchant_Amount             = $this->paymentBridge->getAmount();
-        $Ds_Merchant_Order              = $this->formatOrderNumber($this->paymentBridge->getOrderNumber());
-        $Ds_Merchant_MerchantCode       = $this->merchantCode;
-        $Ds_Merchant_Currency           = $this->currencyTranslation($this->paymentBridge->getCurrency());
-        $Ds_Merchant_MerchantSignature  = $this->shopSignature(
+        /**
+         * Creates the merchant signature
+         */
+        $Ds_Merchant_Amount = $this->paymentBridge->getAmount();
+        $Ds_Merchant_Order = $this->formatOrderNumber(
+            $this
+                ->paymentBridge
+                ->getOrderNumber()
+        );
+        $Ds_Merchant_MerchantCode = $this->merchantCode;
+        $Ds_Merchant_Currency = $this->getCurrencyCodeByIso($this->paymentBridge->getCurrency());
+        $Ds_Merchant_MerchantSignature = $this->shopSignature(
             $Ds_Merchant_Amount,
             $Ds_Merchant_Order,
             $Ds_Merchant_MerchantCode,
             $Ds_Merchant_Currency,
             $Ds_Merchant_TransactionType,
             $Ds_Merchant_MerchantURL,
-            $this->secretKey);
+            $this->secretKey
+        );
 
         $Ds_Merchant_Terminal = $extraData['terminal'];
 
         $formBuilder
             ->setAction($this->url)
             ->setMethod('POST')
-            ->add('Ds_Merchant_Amount', 'hidden', array(
+            ->add('Ds_Merchant_Amount', 'hidden', [
                 'data' => $Ds_Merchant_Amount,
-            ))
-            ->add('Ds_Merchant_MerchantSignature', 'hidden', array(
+            ])
+            ->add('Ds_Merchant_MerchantSignature', 'hidden', [
                 'data' => $Ds_Merchant_MerchantSignature,
-            ))
-            ->add('Ds_Merchant_MerchantCode', 'hidden', array(
+            ])
+            ->add('Ds_Merchant_MerchantCode', 'hidden', [
                 'data' => $this->merchantCode,
-            ))
-            ->add('Ds_Merchant_Currency', 'hidden', array(
+            ])
+            ->add('Ds_Merchant_Currency', 'hidden', [
                 'data' => $Ds_Merchant_Currency,
-            ))
-            ->add('Ds_Merchant_Terminal', 'hidden', array(
-                'data' =>$Ds_Merchant_Terminal,
-            ))
-            ->add('Ds_Merchant_Order', 'hidden', array(
+            ])
+            ->add('Ds_Merchant_Terminal', 'hidden', [
+                'data' => $Ds_Merchant_Terminal,
+            ])
+            ->add('Ds_Merchant_Order', 'hidden', [
                 'data' => $Ds_Merchant_Order,
-            ))
-            ->add('Ds_Merchant_MerchantURL', 'hidden', array(
+            ])
+            ->add('Ds_Merchant_MerchantURL', 'hidden', [
                 'data' => $Ds_Merchant_MerchantURL,
-            ))
-            ->add('Ds_Merchant_UrlOK', 'hidden', array(
+            ])
+            ->add('Ds_Merchant_UrlOK', 'hidden', [
                 'data' => $Ds_Merchant_UrlOK,
-            ))
-            ->add('Ds_Merchant_UrlKO', 'hidden', array(
+            ])
+            ->add('Ds_Merchant_UrlKO', 'hidden', [
                 'data' => $Ds_Merchant_UrlKO,
-            ))
+            ]);
 
-        ;
-
-        /* Optional form fields */
+        /**
+         * Optional form fields
+         */
         if (array_key_exists('transaction_type', $extraData)) {
-            $formBuilder->add('Ds_Merchant_TransactionType', 'hidden', array(
+            $formBuilder->add('Ds_Merchant_TransactionType', 'hidden', [
                 'data' => $Ds_Merchant_TransactionType,
-            ));
+            ]);
         }
+
         if (array_key_exists('product_description', $extraData)) {
-            $formBuilder->add('Ds_Merchant_ProductDescription', 'hidden', array(
+            $formBuilder->add('Ds_Merchant_ProductDescription', 'hidden', [
                 'data' => $extraData['product_description'],
-            ));
+            ]);
         }
 
         if (array_key_exists('merchant_titular', $extraData)) {
-            $formBuilder->add('Ds_Merchant_Titular', 'hidden', array(
+            $formBuilder->add('Ds_Merchant_Titular', 'hidden', [
                 'data' => $extraData['merchant_titular'],
-            ));
+            ]);
         }
 
         if (array_key_exists('merchant_name', $extraData)) {
-            $formBuilder->add('Ds_Merchant_MerchantName', 'hidden', array(
+            $formBuilder->add('Ds_Merchant_MerchantName', 'hidden', [
                 'data' => $extraData['merchant_name'],
-            ));
+            ]);
         }
 
-		if (array_key_exists('merchant_data', $extraData)) {
-			$formBuilder->add('Ds_Merchant_MerchantData', 'hidden', array(
-					'data' => $extraData['merchant_data'],
-				));
-		}
+        if (array_key_exists('merchant_data', $extraData)) {
+            $formBuilder->add('Ds_Merchant_MerchantData', 'hidden', [
+                'data' => $extraData['merchant_data'],
+            ]);
+        }
 
-        return $formBuilder->getForm()->createView();
+        return $formBuilder
+            ->getForm()
+            ->createView();
     }
 
     /**
      * Creates signature to be sent to Redsys
      *
-     * @param  string $amount          Amount
-     * @param  string $order           Order number
-     * @param  string $merchantCode    Merchant code
-     * @param  string $currency        Currency
-     * @param  string $transactionType Transaction type
-     * @param  string $merchantURL     Merchant url
-     * @param  string $secret          Secret key
+     * @param string $amount          Amount
+     * @param string $order           Order number
+     * @param string $merchantCode    Merchant code
+     * @param string $currency        Currency
+     * @param string $transactionType Transaction type
+     * @param string $merchantURL     Merchant url
+     * @param string $secret          Secret key
+     *
      * @return string Signature
      */
-    protected function shopSignature($amount, $order, $merchantCode, $currency, $transactionType, $merchantURL, $secret)
-    {
-        $signature = $amount . $order . $merchantCode . $currency . $transactionType . $merchantURL . $secret;
-        // SHA1
-        return strtoupper(sha1($signature));
-
+    private function shopSignature(
+        $amount,
+        $order,
+        $merchantCode,
+        $currency,
+        $transactionType,
+        $merchantURL,
+        $secret
+    ) {
+        return strtoupper(sha1(implode('', [
+            $amount,
+            $order,
+            $merchantCode,
+            $currency,
+            $transactionType,
+            $merchantURL,
+            $secret,
+        ])));
     }
 
     /**
      * Translates standard currency to Redsys currency code
      *
-     * @param  string                                                             $currency Currency
-     * @return string
-     * @throws \PaymentSuite\RedsysBundle\Exception\CurrencyNotSupportedException
+     * @param string $currency Currency
+     *
+     * @return string Currency code
+     *
+     * @throws CurrencyNotSupportedException Currency not supported
      */
-    protected function currencyTranslation($currency)
+    private function getCurrencyCodeByIso($currency)
     {
         switch ($currency) {
             case 'EUR':
@@ -286,12 +313,14 @@ class RedsysFormTypeWrapper
     /**
      * Formats order number to be Redsys compliant
      *
-     * @param  string $orderNumber Order number
+     * @param string $orderNumber Order number
+     *
      * @return string $orderNumber
+     *
+     * @todo Check that start with 4 numbers and that at least is 12 chars long
      */
-    protected function formatOrderNumber($orderNumber)
+    private function formatOrderNumber($orderNumber)
     {
-        //Falta comprobar que empieza por 4 numericos y que como mucho tiene 12 de longitud
         $length = strlen($orderNumber);
         $minLength = 4;
 
